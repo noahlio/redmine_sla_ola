@@ -24,3 +24,7 @@
 
    1. Issues must have a custom field called products (as a string), which is used to match against the products defined in each LevelAgreementPolicy. 
    2. Issues must have a boolean field called first_reply that indicates whether the issue has already received a first response.
+   3. To show a counter to the right of the query issues set the plugin_redmine_sla_ola/show_count_projects configuration with the projects identifiers:
+      - Setting.plugin_redmine_sla_ola = {'show_count_projects' => ['b2brouter-suport'] }
+   4. If plugin_redmine_sla_ola/show_count_projects is equal to ['all'] all the projects show the issue counter at his query issues:
+      - Setting.plugin_redmine_sla_ola = {'show_count_projects' => ['all'] }
