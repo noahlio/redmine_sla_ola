@@ -13,21 +13,19 @@ module RedmineSlaOla
       end
 
       def sql_for_sla_breached_field(field, operator, value)
-        sql_for_breached_field(field, value, :sla_delay)
+        sql_for_breached_field(field, operator, value, :sla_delay)
       end
 
       def sql_for_ola_breached_field(field, operator, value)
-        sql_for_breached_field(field, value, :ola_delay)
+        sql_for_breached_field(field, operator, value, :ola_delay)
       end
 
       private
 
-      def sql_for_breached_field(_field, value, delay_type)
-        show_breached = value.include?('1')
-        show_not_breached = value.include?('0')
+      def sql_for_breached_field(_field, operator, value, delay_type)
         matched_issue_ids = []
         policies = LevelAgreementPolicy.all.to_a
-        custom_field_products_id = CustomField.where(name: 'Products').first&.id
+        custom_field_products_id = CustomField.find_by(name: 'Products')&.id
 
         return '1=0' if custom_field_products_id.nil?
 
@@ -38,13 +36,28 @@ module RedmineSlaOla
           policy = policies.find { |p| (p.products & products).any? }
           next unless policy && policy.send(delay_type)
 
-          hours_elapsed = policy.business_time_hours_between(issue.created_on, Time.now)
+          hours_elapsed = policy.business_time_hours_between(issue.created_on, Time.current)
           breached = hours_elapsed > policy.send(delay_type)
 
-          matched_issue_ids << issue.id if (breached && show_breached) || (!breached && show_not_breached)
+          matched_issue_ids << issue.id if breached
         end
 
-        matched_issue_ids.any? ? "issues.id IN (#{matched_issue_ids.uniq.join(',')})" : '1=0'
+        case operator
+        when '='
+          if value.include?('1')
+            return matched_issue_ids.any? ? "issues.id IN (#{matched_issue_ids.uniq.join(',')})" : '1=0'
+          elsif value.include?('0')
+            return matched_issue_ids.any? ? "issues.id NOT IN (#{matched_issue_ids.uniq.join(',')})" : '1=1'
+          end
+        when '!'
+          if value.include?('1')
+            return matched_issue_ids.any? ? "issues.id NOT IN (#{matched_issue_ids.uniq.join(',')})" : '1=1'
+          elsif value.include?('0')
+            return matched_issue_ids.any? ? "issues.id IN (#{matched_issue_ids.uniq.join(',')})" : '1=0'
+          end
+        end
+
+        '1=0'  # fallback: no matching operator
       end
     end
   end
